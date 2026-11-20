@@ -1,0 +1,15 @@
+{
+  "name": "@xylium/config",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Configuration contracts shared by the Xylium SDK application and the Admin Application: schemas, secret helpers, request signing, pattern validator",
+  "main": "src/index.js",
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  },
+  "dependencies": {
+    "acorn": "^8.18.0",
+    "acorn-walk": "^8.3.5",
+    "zod": "^3.24.1"
+  }
+}

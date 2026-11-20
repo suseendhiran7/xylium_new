@@ -1,0 +1,13 @@
+{
+  "name": "xylium",
+  "private": true,
+  "description": "Xylium monorepo: SDK/collector (node_app), Admin Application (admin_app), shared config contracts (packages/*)",
+  "workspaces": [
+    "node_app",
+    "admin_app",
+    "packages/*"
+  ],
+  "scripts": {
+    "test": "npm test --workspaces --if-present"
+  }
+}
