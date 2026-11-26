@@ -59,7 +59,7 @@ export default function Patterns() {
 
   return (
     <div>
-      <PageHeader title="Custom patterns" back={{ to: '/configs', label: 'Configuration' }}>
+      <PageHeader title="Custom patterns">
         <ApplyModeBadge mode="hot" />
         <Link className="button secondary" to="/configs/custom-patterns/history">
           History

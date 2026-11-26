@@ -77,7 +77,7 @@ export default function ConfigEdit({ typeOverride }) {
 
   return (
     <div>
-      <PageHeader title={TYPE_LABELS[type] || type} back={{ to: '/configs', label: 'Configuration' }}>
+      <PageHeader title={TYPE_LABELS[type] || type}>
         <ApplyModeBadge mode={meta.applyMode} />
         <Link className="button secondary" to={`/configs/${type}/history`}>
           History
