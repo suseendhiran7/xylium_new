@@ -1,0 +1,4 @@
+# SDK script files are rewritten by the SDK in admin mode (custom patterns
+# published from the admin panel) with LF line endings. Keep them LF on every
+# checkout so those rewrites don't show up as changes on Windows.
+node_app/sdk/*.js text eol=lf
