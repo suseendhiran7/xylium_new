@@ -7,6 +7,7 @@ import ConfigEdit from './pages/ConfigEdit.jsx';
 import History from './pages/History.jsx';
 import Patterns from './pages/Patterns.jsx';
 import { Audit, Instances, Users } from './pages/Admin.jsx';
+import DbOps from './pages/DbOps.jsx';
 import './styles.css';
 
 function Login() {
@@ -124,6 +125,14 @@ const ICONS = {
       <path d="M21 12H9" />
     </>
   ),
+  dbops: (
+    <>
+      <ellipse cx="10" cy="5" rx="7" ry="2.5" />
+      <path d="M3 5v10c0 1.4 3.1 2.5 7 2.5" />
+      <path d="M3 10c0 1.4 3.1 2.5 7 2.5s7-1.1 7-2.5V5" />
+      <path d="M18 14v7M15 18l3 3 3-3" />
+    </>
+  ),
   menu: <path d="M4 6h16M4 12h16M4 18h16" />,
 };
 
@@ -175,6 +184,10 @@ function Shell() {
             <Icon name="instances" />
             <span>SDK instances</span>
           </NavLink>
+          <NavLink to="/db-ops">
+            <Icon name="dbops" />
+            <span>Migration & backups</span>
+          </NavLink>
           {can('admin') && (
             <NavLink to="/audit">
               <Icon name="audit" />
@@ -209,6 +222,7 @@ function Shell() {
           <Route path="/configs/:type" element={<ConfigEdit />} />
           <Route path="/configs/:type/history" element={<History />} />
           <Route path="/instances" element={<Instances />} />
+          <Route path="/db-ops" element={<DbOps />} />
           <Route path="/audit" element={can('admin') ? <Audit /> : <Navigate to="/" />} />
           <Route path="/users" element={can('superadmin') ? <Users /> : <Navigate to="/" />} />
           <Route path="*" element={<p className="muted">Page not found.</p>} />

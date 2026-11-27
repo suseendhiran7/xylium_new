@@ -3,6 +3,7 @@
 const express = require('express');
 const { verifyRequest, NonceCache, messages, parseConfig } = require('@xylium/config');
 const databaseSwitchService = require('../services/database-switch.service');
+const { createDbOpsRouter } = require('../db-ops/routes');
 
 /**
  * Admin-facing routes on the SDK. Mounted only when CONFIG_SOURCE is shadow
@@ -66,6 +67,9 @@ function createInternalRouter(runtime, { appliers }) {
   });
 
   router.get('/config/applied', (req, res) => res.json(runtime.status()));
+
+  // Migration, backup and restore jobs started from the Admin Application.
+  router.use('/db-ops', createDbOpsRouter());
 
   router.use((req, res) => res.status(404).json({ error: 'not found' }));
   return router;

@@ -5,6 +5,7 @@ const { migrate } = require('./db/migrate');
 const { closePool } = require('./db/pool');
 const { createPublicApp, createInternalApp } = require('./app');
 const { startOutboxWorker } = require('./modules/notifier/outbox.worker');
+const { startBackupScheduler } = require('./modules/dbops/backup.scheduler');
 
 async function main() {
   const cfg = getConfig(); // fails fast on a bad environment
@@ -15,10 +16,12 @@ async function main() {
     console.log(`[admin] internal SDK API on ${cfg.internalHost}:${cfg.internalPort}`)
   );
   const worker = startOutboxWorker();
+  const backups = startBackupScheduler();
 
   const shutdown = async (signal) => {
     console.log(`[admin] ${signal}, shutting down`);
     worker.stop();
+    backups.stop();
     pub.close();
     internal.close();
     await closePool().catch(() => {});

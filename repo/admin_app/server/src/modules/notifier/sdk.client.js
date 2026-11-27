@@ -50,4 +50,31 @@ async function callSdk(baseUrl, method, path, payload, { timeoutMs } = {}) {
   return { status: res.status, body: parsed };
 }
 
-module.exports = { callSdk, assertAllowed };
+/**
+ * Signed request whose response (and optionally request) body is streamed:
+ * backup downloads and uploads. The signature covers method + path + query
+ * with an empty body; an upload carries its sha256 in the (signed) query and
+ * the SDK checks the bytes against it.
+ * @param {{ body?: import('stream').Readable, contentType?: string, contentLength?: number, timeoutMs?: number }} [opts]
+ * @returns {Promise<Response>} the raw fetch Response (caller consumes res.body)
+ */
+async function callSdkStream(baseUrl, method, path, { body, contentType, contentLength, timeoutMs } = {}) {
+  const cfg = getConfig();
+  const base = assertAllowed(baseUrl);
+  const url = new URL(path, base.href.endsWith('/') ? base.href : `${base.href}/`);
+  const headers = signRequest({ keyId: cfg.adminToSdk.keyId, secret: cfg.adminToSdk.secret, method, path: url.pathname + url.search, body: '' });
+  if (body) {
+    headers['content-type'] = contentType || 'application/octet-stream';
+    if (contentLength !== undefined) headers['content-length'] = String(contentLength);
+  }
+  return fetch(url, {
+    method,
+    headers,
+    body,
+    duplex: body ? 'half' : undefined,
+    redirect: 'error',
+    signal: AbortSignal.timeout(timeoutMs || 60 * 60 * 1000),
+  });
+}
+
+module.exports = { callSdk, callSdkStream, assertAllowed };

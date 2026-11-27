@@ -315,6 +315,23 @@ The SDK also starts if the admin app is down. It then uses its last saved settin
 
 ---
 
+## Migration & backups
+
+Admin app → **Migration & backups**. Jobs run on a connected SDK instance (step 8, `CONFIG_SOURCE=shadow` or `admin`) against the database saved on the **Database** page.
+
+| Action | Who | What it does |
+| --- | --- | --- |
+| **Run migration** | admin | Creates / upgrades every SDK table, column, index and unique key in the selected database (PostgreSQL or MongoDB). Never drops data; safe to repeat. With PostgreSQL selected it can also **copy data from MongoDB** (no duplicates, resumable, optional dry run and verify). |
+| **Back up now** | operator | Full dump of the active database: one compressed `*.xbk.gz` file. |
+| **Daily backup** | admin | On by default at 02:00 (admin server time), kept 14 days. A missed run is caught up when the admin app starts. |
+| **Download** | operator | Saves a backup file to your computer. |
+| **Upload backup** | admin | Sends a `*.xbk.gz` file back. It is checked (complete, not damaged) before it is accepted. |
+| **Restore** | admin | **Merge** (default): adds the backup's rows back; current rows are kept. **Replace**: empties the backed-up tables first so they hold exactly the backup (a safety backup is taken first; type `REPLACE` to confirm). |
+
+Backups are stored on the SDK host in `node_app\backups` (set `BACKUP_DIR` to change it). Uploads are limited to 2048 MB (`BACKUP_MAX_UPLOAD_MB`, in both `.env` files). A backup restores into the same kind of database it was taken from. Every action is recorded in the **Audit log**.
+
+---
+
 ## All commands at a glance
 
 | Where | Command | What it does |

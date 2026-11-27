@@ -52,7 +52,7 @@ export function Audit() {
         </select>
         <select value={filters.action} onChange={set('action')} aria-label="Action">
           <option value="">All actions</option>
-          {['config.update', 'config.rollback', 'config.import', 'db.validate', 'login', 'login.failed', 'logout', 'user.create', 'user.update', 'rollout.retry', 'instance.remove'].map((a) => (
+          {['config.update', 'config.rollback', 'config.import', 'db.validate', 'login', 'login.failed', 'logout', 'user.create', 'user.update', 'rollout.retry', 'instance.remove', 'db.migrate', 'db.backup', 'db.backup.scheduled', 'db.backup.download', 'db.backup.upload', 'db.backup.delete', 'db.restore', 'db.schedule.update', 'db.job.cancel'].map((a) => (
             <option key={a}>{a}</option>
           ))}
         </select>

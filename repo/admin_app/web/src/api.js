@@ -37,12 +37,30 @@ async function request(method, url, body) {
   return json;
 }
 
+/** PUT a File as the raw request body (application/octet-stream). */
+async function upload(url, file) {
+  const headers = { 'content-type': 'application/octet-stream' };
+  if (csrfToken) headers['x-csrf-token'] = csrfToken;
+  const res = await fetch(url, { method: 'PUT', headers, credentials: 'same-origin', body: file });
+  const text = await res.text();
+  let json = null;
+  try {
+    json = text ? JSON.parse(text) : null;
+  } catch {
+    json = { message: text };
+  }
+  if (res.status === 401) onUnauthorized();
+  if (!res.ok) throw new ApiError(res.status, json);
+  return json;
+}
+
 export const api = {
   get: (u) => request('GET', u),
   post: (u, b) => request('POST', u, b ?? {}),
   put: (u, b) => request('PUT', u, b),
   patch: (u, b) => request('PATCH', u, b),
   del: (u) => request('DELETE', u),
+  upload,
 };
 
 export const UNCHANGED = '__UNCHANGED__';

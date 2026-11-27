@@ -11,6 +11,7 @@ const usersRoutes = require('./modules/users/users.routes');
 const configsRoutes = require('./modules/configs/configs.routes');
 const { instances, rollouts, audit } = require('./modules/instances/instances.routes');
 const internalRoutes = require('./internal/internal.routes');
+const dbOpsRoutes = require('./modules/dbops/dbops.routes');
 
 const { getConfig } = require('./config');
 
@@ -54,6 +55,7 @@ function createPublicApp() {
   api.use('/instances', instances);
   api.use('/rollouts', rollouts);
   api.use('/audit', audit);
+  api.use('/db-ops', dbOpsRoutes);
   api.use(notFound);
   app.use('/api', (req, res, next) => {
     res.set('Cache-Control', 'no-store');
