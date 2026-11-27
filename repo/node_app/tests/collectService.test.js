@@ -108,7 +108,7 @@ describe('ingest() routing', () => {
     );
   });
 
-  test('logged-in session: payment page events go to payment_events', async () => {
+  test('logged-in session: only pageType "payment" events go to payment_events (page path is not matched)', async () => {
     mockExistingSession({ userId: 'user_42', phase: 'session' });
     const events = [
       { type: 'click', sessionId: 'sess_1', userId: 'user_42', page: '/dashboard', t: 1 },
@@ -118,8 +118,8 @@ describe('ingest() routing', () => {
     await ingest(makeDto({ events }), null);
 
     expect(LoginEvent.create).not.toHaveBeenCalled();
-    expect(SessionEvent.create.mock.calls[0][0].eventCount).toBe(1);
-    expect(PaymentEvent.create.mock.calls[0][0].eventCount).toBe(2);
+    expect(SessionEvent.create.mock.calls[0][0].eventCount).toBe(2);
+    expect(PaymentEvent.create.mock.calls[0][0].eventCount).toBe(1);
     expect(PaymentEvent.create.mock.calls[0][0].userId).toBe('user_42');
   });
 
@@ -164,7 +164,7 @@ describe('ingest() routing', () => {
 
 describe('splitEvents()', () => {
   test('payment page before login still counts as login phase', () => {
-    const { buckets } = splitEvents([{ type: 'click', page: '/payment' }], 'login');
+    const { buckets } = splitEvents([{ type: 'click', page: '/payment', pageType: 'payment' }], 'login');
     expect(buckets.login).toHaveLength(1);
     expect(buckets.payment).toHaveLength(0);
   });

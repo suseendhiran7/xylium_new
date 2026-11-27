@@ -74,12 +74,15 @@ function configsFromEnv(env) {
     },
     ingestion: {
       maxBatchEvents: int(env.MAX_BATCH_EVENTS, '500'),
-      paymentPagePattern: env.PAYMENT_PAGE_PATTERN || '(payment|checkout|pay|billing)',
       rawTtlDays: int(env.RAW_TTL_DAYS, '0'),
     },
     tenants: {
       allowedTenants: list(env.ALLOWED_TENANTS),
       tenantApiKeys: jsonMap(env.TENANT_API_KEYS),
+      // {"tenant_a":["203.0.113.0/24"]} — a comma-separated string per tenant works too.
+      ipWhitelist: Object.fromEntries(
+        Object.entries(jsonMap(env.TENANT_IP_WHITELIST)).map(([t, v]) => [t, Array.isArray(v) ? v : list(v)])
+      ),
     },
     'ip-intel': {
       provider: (env.IP_INTEL_PROVIDER || 'none').toLowerCase(),

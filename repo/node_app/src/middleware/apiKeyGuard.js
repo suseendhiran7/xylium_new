@@ -1,5 +1,6 @@
 const { timingSafeEqual } = require('crypto');
 const config = require('../config');
+const { enforceTenantIp } = require('./tenantIpWhitelist');
 
 function safeEqual(a, b) {
   const ab = Buffer.from(a);
@@ -24,6 +25,7 @@ function apiKeyGuard(req, res, next) {
   if (!safeEqual(apiKey, keys[tenantId])) {
     return res.status(401).json({ error: 'invalid api key' });
   }
+  if (!enforceTenantIp(req, res, tenantId)) return;
   req.tenantId = tenantId;
   next();
 }

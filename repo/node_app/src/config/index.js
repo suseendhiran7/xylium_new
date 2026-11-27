@@ -5,14 +5,23 @@ function list(v) {
   return v.split(',').map((s) => s.trim()).filter(Boolean);
 }
 
-function jsonMap(v) {
+function jsonMap(v, name = 'TENANT_API_KEYS') {
   if (!v) return {};
   try {
-    return JSON.parse(v);
+    const o = JSON.parse(v);
+    return o && typeof o === 'object' && !Array.isArray(o) ? o : {};
   } catch {
-    console.warn('[config] TENANT_API_KEYS is not valid JSON — treating as empty');
+    console.warn(`[config] ${name} is not valid JSON — treating as empty`);
     return {};
   }
+}
+
+// TENANT_IP_WHITELIST={"tenant_a":["203.0.113.0/24","198.51.100.7"]}
+// (a comma-separated string per tenant also works).
+function ipWhitelist(v) {
+  return Object.fromEntries(
+    Object.entries(jsonMap(v, 'TENANT_IP_WHITELIST')).map(([t, ips]) => [t, Array.isArray(ips) ? ips.map(String) : list(String(ips))])
+  );
 }
 
 // TRUST_PROXY → Express `trust proxy`. "true"/"false", a hop count, or a
@@ -54,11 +63,10 @@ module.exports = {
   allowedTenants: list(process.env.ALLOWED_TENANTS),
   corsOrigins: list(process.env.CORS_ORIGINS),
   tenantApiKeys: jsonMap(process.env.TENANT_API_KEYS),
+  // tenant id -> IPs / CIDR ranges allowed for that tenant (see middleware/tenantIpWhitelist.js)
+  tenantIpWhitelist: ipWhitelist(process.env.TENANT_IP_WHITELIST),
   maxBatchEvents: parseInt(process.env.MAX_BATCH_EVENTS || '500', 10),
   maxPayloadBytes: parseInt(process.env.MAX_PAYLOAD_BYTES || '262144', 10),
-  // Regex (case-insensitive) matched against each event's `page` (URL path).
-  // Logged-in events on a matching page go to payment_events.
-  paymentPagePattern: new RegExp(process.env.PAYMENT_PAGE_PATTERN || '(payment|checkout|pay|billing)', 'i'),
   rawTtlDays: parseInt(process.env.RAW_TTL_DAYS || '0', 10),
   rateLimitWindowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '60000', 10),
   rateLimitMax: parseInt(process.env.RATE_LIMIT_MAX || '3000', 10),

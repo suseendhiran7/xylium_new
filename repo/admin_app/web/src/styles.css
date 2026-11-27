@@ -186,6 +186,16 @@ button.icon-button { box-shadow: none; }
 .kv { display: flex; flex-direction: column; gap: 8px; max-width: 640px; }
 .kv-row { display: grid; grid-template-columns: 1fr 1.4fr auto; gap: 8px; align-items: center; }
 
+/* per-tenant IP whitelist */
+.tenant-lists { display: flex; flex-direction: column; gap: 10px; max-width: 720px; margin-top: 8px; }
+.tenant-lists > button.small { align-self: flex-start; }
+.tenant-list { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; background: #fafbfd; display: flex; flex-direction: column; gap: 8px; }
+.tenant-list-head { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.tenant-list-head input { max-width: 260px; }
+.tenant-list-head .link { margin-left: auto; }
+.tenant-list textarea { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px; }
+.field-error { color: var(--bad); margin: 0; }
+
 .pattern-head { display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap; }
 .pattern-actions { display: flex; gap: 18px; }
 
@@ -236,7 +246,8 @@ code.wrap { word-break: break-all; }
 a.link { color: var(--accent); font-weight: 600; text-decoration: none; }
 a.link:hover { text-decoration: underline; }
 .row-actions a.link + .link { margin-left: 14px; }
-button.danger { background: var(--bad); border-color: var(--bad); }
-button.danger:hover:not(:disabled) { background: #991b1b; border-color: #991b1b; }
+/* solid red action button; text-link buttons (.link.danger) stay plain red text */
+button.danger:not(.link) { background: var(--bad); border-color: var(--bad); }
+button.danger:not(.link):hover:not(:disabled) { background: #991b1b; border-color: #991b1b; }
 label.button { cursor: pointer; }
 label.button.disabled { opacity: 0.5; pointer-events: none; }

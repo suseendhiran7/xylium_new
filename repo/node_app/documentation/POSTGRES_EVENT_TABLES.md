@@ -8,7 +8,7 @@ payment split used for MongoDB.
 |---|---|---|
 | `login_events` | Events before and at login, and after a logout | `login_events` |
 | `session_events` | Logged-in events, up to and including logout | `session_events` |
-| `payment_events` | Logged-in events on a payment page (`PAYMENT_PAGE_PATTERN` or `pageType: 'payment'`) | `payment_events` |
+| `payment_events` | Logged-in events the page tags as payment (`pageType: 'payment'`, set with `data-page-type` or `setPageType()`) | `payment_events` |
 | `xylium_sessions` | Per-session phase, user, login/logout times, counters | `sessions` |
 
 All tables are created automatically on connect (`CREATE TABLE IF NOT EXISTS`),

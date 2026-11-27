@@ -315,6 +315,19 @@ The SDK also starts if the admin app is down. It then uses its last saved settin
 
 ---
 
+## Per-tenant IP whitelist
+
+Open **Tenants & API keys** and use **IP whitelist (per tenant)**. Each tenant gets its own list: one IP address or CIDR range per line (`203.0.113.7`, `203.0.113.0/24`, `2001:db8::/32`).
+
+- When a tenant has entries, its `/collect`, `/ip-intel` and `/identify` requests are accepted only from those IPs. Requests from other IPs get `403 ip not allowed for this tenant`.
+- A tenant with no entries accepts requests from any IP.
+- One tenant's list never lets an IP through for another tenant.
+- Saving applies at once on every SDK instance (no restart).
+- The IP checked is the client IP the SDK sees. Behind a load balancer, set **HTTP & security → trust proxy** correctly, or every request appears to come from the proxy.
+- Browser traffic (`/collect`, `/ip-intel`) comes from your end users' IPs. Whitelist a tenant only when its users come from known networks (for example an internal app or a branch office).
+
+---
+
 ## Migration & backups
 
 Admin app → **Migration & backups**. Jobs run on a connected SDK instance (step 8, `CONFIG_SOURCE=shadow` or `admin`) against the database saved on the **Database** page.

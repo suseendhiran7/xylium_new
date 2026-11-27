@@ -11,7 +11,7 @@ const secrets = require('./secrets');
 const signing = require('./signing');
 const messages = require('./messages');
 const { analyze, MODULE_WRAPPER_RE } = require('./pattern-validator');
-const { safeRegexSource } = require('./regex-safety');
+const { parseIpEntry, ipEntryProblem, compileIpWhitelist } = require('./ip-whitelist');
 const database = require('./types/database');
 const { configsFromEnv } = require('./from-env');
 
@@ -23,7 +23,9 @@ module.exports = {
   configsFromEnv,
   analyze,
   MODULE_WRAPPER_RE,
-  safeRegexSource,
+  parseIpEntry,
+  ipEntryProblem,
+  compileIpWhitelist,
   DatabaseConfigSchema: database.DatabaseConfigSchema,
   sanitizeDatabaseConfig: database.sanitizeDatabaseConfig,
   DATABASE_CONNECTION_FIELDS: database.CONNECTION_FIELDS,

@@ -133,9 +133,9 @@ describe('ingest() with PostgreSQL active', () => {
     expect(s).toMatchObject({ phase: 'session', user_id: 'user_42', identified_by: 'browser', batch_count: 1, event_count: 4 });
   });
 
-  test('later batch: phase is remembered, payment page -> payment_events', async () => {
+  test('later batch: phase is remembered, pageType payment -> payment_events', async () => {
     await ingest(dto([
-      { type: 'keytiming', field: 'card', holdTimeMs: 70, page: '/checkout/pay', userId: 'user_42' },
+      { type: 'keytiming', field: 'card', holdTimeMs: 70, page: '/checkout/pay', pageType: 'payment', userId: 'user_42' },
       { type: 'login_result', success: true, failedAttemptsInWindow: 0, page: '/account', userId: 'user_42' },
     ]), '1.2.3.4');
     const pay = await rows('payment_events', `WHERE session_id = '${SESSION}'`);

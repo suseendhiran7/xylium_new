@@ -27,8 +27,8 @@ describe('registry', () => {
         mongodb: { uri: 'mongodb://localhost:27017/xylium', database: 'xylium', maxPoolSize: 20, minPoolSize: 2, serverSelectionTimeoutMS: 5000, socketTimeoutMS: 30000 },
         postgresql: { host: 'localhost', port: 5432, database: 'postgres', user: 'postgres', password: 'postgres', ssl: false, maxPoolSize: 20, idleTimeoutMillis: 30000, connectionTimeoutMillis: 5000 },
       },
-      ingestion: { maxBatchEvents: 500, paymentPagePattern: '(payment|checkout|pay|billing)', rawTtlDays: 30 },
-      tenants: { allowedTenants: ['tenant_test001', 'tenant_abc123'], tenantApiKeys: { tenant_test001: 'changeme-secret' } },
+      ingestion: { maxBatchEvents: 500, rawTtlDays: 30 },
+      tenants: { allowedTenants: ['tenant_test001', 'tenant_abc123'], tenantApiKeys: { tenant_test001: 'changeme-secret' }, ipWhitelist: { tenant_test001: ['203.0.113.0/24'] } },
       'ip-intel': { provider: 'ipapi', apiKey: '', strictness: 1, timeoutMs: 3000, cacheTtlMs: 21600000, cacheMax: 10000, devIp: '' },
       'http-security': { corsOrigins: ['*'], trustProxy: 'loopback, linklocal, uniquelocal', maxPayloadBytes: 262144, rateLimitWindowMs: 60000, rateLimitMax: 3000, ipIntelRateLimitWindowMs: 60000, ipIntelRateLimitMax: 30 },
       'custom-patterns': { patterns: [] },
@@ -53,17 +53,36 @@ describe('registry', () => {
   });
 });
 
-describe('regex safety (paymentPagePattern runs on every event)', () => {
-  test('accepts the default and ordinary alternations', () => {
-    assert.strictEqual(c.safeRegexSource('(payment|checkout|pay|billing)'), null);
-    assert.strictEqual(c.safeRegexSource('^/(checkout|cart)/'), null);
+describe('per-tenant IP whitelist', () => {
+  test('accepts addresses and CIDR ranges, IPv4 and IPv6', () => {
+    const r = c.parseConfig('tenants', { ipWhitelist: { t1: ['203.0.113.7', '203.0.113.0/24', ' 10.0.0.0/8 '], t2: ['2001:db8::1', '2001:db8::/32'] } });
+    assert.ok(r.success, r.success ? '' : JSON.stringify(r.error.flatten()));
+    assert.strictEqual(r.data.ipWhitelist.t1[2], '10.0.0.0/8', 'trimmed');
   });
-  test('rejects invalid and catastrophic patterns', () => {
-    assert.match(c.safeRegexSource('(unclosed'), /Not a valid/);
-    assert.match(c.safeRegexSource('(a+)+$'), /Nested quantifier/);
-    assert.match(c.safeRegexSource('(.*)*x'), /Nested quantifier/);
-    assert.match(c.safeRegexSource('(a|aa)+$'), /overlapping/);
-    assert.strictEqual(c.parseConfig('ingestion', { paymentPagePattern: '(a+)+$' }).success, false);
+  test('rejects junk, bad prefixes and bad tenant ids', () => {
+    for (const bad of ['nope', '300.1.1.1', '10.0.0.0/33', '2001:db8::/129', '10.0.0.0/8/1', '10.0.0.0/x', '']) {
+      assert.strictEqual(c.parseConfig('tenants', { ipWhitelist: { t1: [bad] } }).success, false, bad);
+    }
+    assert.strictEqual(c.parseConfig('tenants', { ipWhitelist: { 'bad tenant!': ['10.0.0.1'] } }).success, false);
+  });
+  test('defaults to no whitelist', () => {
+    assert.deepStrictEqual(c.parseConfig('tenants', {}).data.ipWhitelist, {});
+  });
+  test('matcher: exact, range, IPv4-mapped IPv6, non-matches', () => {
+    const m = c.compileIpWhitelist(['203.0.113.0/24', '198.51.100.7', '2001:db8::/32']);
+    assert.ok(m('203.0.113.200'));
+    assert.ok(m('198.51.100.7'));
+    assert.ok(m('::ffff:203.0.113.1'));
+    assert.ok(m('2001:db8:abcd::1'));
+    assert.ok(!m('198.51.100.8'));
+    assert.ok(!m('2001:db9::1'));
+    assert.ok(!m(null));
+    assert.ok(!m('not-an-ip'));
+  });
+  test('the old paymentPagePattern setting is ignored', () => {
+    const r = c.parseConfig('ingestion', { maxBatchEvents: 10, paymentPagePattern: '(checkout)' });
+    assert.ok(r.success);
+    assert.ok(!('paymentPagePattern' in r.data));
   });
 });
 

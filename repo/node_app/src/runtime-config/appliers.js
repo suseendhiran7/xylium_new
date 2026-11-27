@@ -26,7 +26,6 @@ const ACTOR = { username: 'admin-app' };
 const ingestion = {
   boot(d) {
     config.maxBatchEvents = d.maxBatchEvents;
-    config.paymentPagePattern = new RegExp(d.paymentPagePattern, 'i');
     config.rawTtlDays = d.rawTtlDays;
   },
   async apply(d) {
@@ -39,10 +38,13 @@ const tenants = {
   boot(d) {
     config.allowedTenants = [...d.allowedTenants];
     config.tenantApiKeys = { ...d.tenantApiKeys };
+    // New object every time: the IP whitelist middleware recompiles on change.
+    config.tenantIpWhitelist = Object.fromEntries(Object.entries(d.ipWhitelist || {}).map(([t, ips]) => [t, [...ips]]));
   },
   async apply(d) {
     this.boot(d);
-    return { status: 'applied', details: { tenants: d.allowedTenants.length, apiKeys: Object.keys(d.tenantApiKeys).length } };
+    const ipWhitelisted = Object.values(d.ipWhitelist || {}).filter((ips) => ips.length > 0).length;
+    return { status: 'applied', details: { tenants: d.allowedTenants.length, apiKeys: Object.keys(d.tenantApiKeys).length, ipWhitelistedTenants: ipWhitelisted } };
   },
 };
 

@@ -10,10 +10,11 @@ import { UNCHANGED } from '../api.js';
 const HELP = {
   activeDatabase: 'Where NEW events are written. Existing history stays in the previous database.',
   maxBatchEvents: 'Maximum events accepted in one /collect request.',
-  paymentPagePattern: 'Regular expression (case-insensitive) matched against the page path to route events to payment.',
   rawTtlDays: 'Delete raw events older than this many days. 0 keeps them forever.',
   allowedTenants: 'One tenant id per line. Empty allows every tenant (development only).',
   tenantApiKeys: 'Server-to-server keys per tenant (used by /identify and payment verification).',
+  ipWhitelist:
+    'Each tenant has its own list. When a tenant has entries, its requests (/collect, /ip-intel, /identify) are accepted only from those IPs; others get 403. A tenant with no entries accepts any IP.',
   provider: 'none disables lookups; ipapi is free; ipqs needs an API key.',
   corsOrigins: 'One origin per line, e.g. https://shop.example.com. Empty allows any origin.',
   trustProxy: 'Hop count (e.g. 1) or subnet list. Never "true" behind a public load balancer.',
@@ -25,7 +26,7 @@ const LABELS = {
   mongodb: 'MongoDB', postgresql: 'PostgreSQL', uri: 'Connection URI', ssl: 'Use SSL/TLS', devIp: 'Development IP override',
   serverSelectionTimeoutMS: 'Server selection timeout (ms)', socketTimeoutMS: 'Socket timeout (ms)',
   idleTimeoutMillis: 'Idle timeout (ms)', connectionTimeoutMillis: 'Connection timeout (ms)',
-  tenantApiKeys: 'Tenant API keys', ipIntelRateLimitWindowMs: 'IP intel rate-limit window (ms)', ipIntelRateLimitMax: 'IP intel rate-limit max requests',
+  tenantApiKeys: 'Tenant API keys', ipWhitelist: 'IP whitelist (per tenant)', ipIntelRateLimitWindowMs: 'IP intel rate-limit window (ms)', ipIntelRateLimitMax: 'IP intel rate-limit max requests',
   rawTtlDays: 'Raw event retention (days)', corsOrigins: 'CORS origins', maxPayloadBytes: 'Max payload (bytes)',
 };
 // camelCase → sentence case, with known acronyms kept.
@@ -72,10 +73,21 @@ export function fromFormState(state) {
   return walk(state);
 }
 
-function Field({ name, schema, value, onChange, path }) {
+function Field({ name, schema, value, onChange, path, root }) {
   const id = `f-${path.join('-')}`;
   const help = HELP[name];
   const common = { id, name: path.join('.') };
+
+  // tenant id -> list of strings (the per-tenant IP whitelist)
+  if (schema.type === 'object' && schema.additionalProperties && schema.additionalProperties.type === 'array') {
+    return (
+      <div className="field">
+        <label htmlFor={id}>{label(name)}</label>
+        {help && <p className="help">{help}</p>}
+        <TenantListEditor id={id} value={value || {}} onChange={onChange} tenants={(root && root.allowedTenants) || []} />
+      </div>
+    );
+  }
 
   if (value && typeof value === 'object' && value.__secretMap) {
     return (
@@ -110,7 +122,7 @@ function Field({ name, schema, value, onChange, path }) {
       <fieldset className="group">
         <legend>{label(name)}</legend>
         {Object.entries(schema.properties).map(([k, s]) => (
-          <Field key={k} name={k} schema={s} value={value ? value[k] : undefined} path={[...path, k]} onChange={(v) => onChange({ ...(value || {}), [k]: v })} />
+          <Field key={k} name={k} schema={s} value={value ? value[k] : undefined} path={[...path, k]} root={root} onChange={(v) => onChange({ ...(value || {}), [k]: v })} />
         ))}
       </fieldset>
     );
@@ -251,12 +263,80 @@ function KeyValueEditor({ id, value, onChange, secret }) {
   );
 }
 
+// Loose browser-side check so typos are flagged while typing; the server
+// validates every entry exactly before anything is saved.
+const IPV4 = /^(25[0-5]|2[0-4]\d|1?\d?\d)(\.(25[0-5]|2[0-4]\d|1?\d?\d)){3}(\/(3[0-2]|[12]?\d))?$/;
+const IPV6 = /^[0-9a-f:.]*:[0-9a-f:.]*(\/(12[0-8]|1[01]\d|[1-9]?\d))?$/i;
+const looksLikeIp = (s) => IPV4.test(s) || IPV6.test(s);
+const splitLines = (text) => text.split(/[\n,]/).map((s) => s.trim()).filter(Boolean);
+
+/** Per-tenant lists: one row per tenant, entries one per line. */
+function TenantListEditor({ id, value, onChange, tenants }) {
+  const [rows, setRows] = useState(() => Object.entries(value || {}).map(([tenant, list]) => ({ tenant, text: (list || []).join('\n') })));
+  const push = (next) => {
+    setRows(next);
+    onChange(Object.fromEntries(next.filter((r) => r.tenant.trim()).map((r) => [r.tenant.trim(), splitLines(r.text)])));
+  };
+  const used = new Set(rows.map((r) => r.tenant.trim()));
+  const unused = tenants.filter((t) => !used.has(t));
+  const listId = `${id}-tenants`;
+  return (
+    <div className="tenant-lists" id={id}>
+      <datalist id={listId}>
+        {unused.map((t) => (
+          <option key={t} value={t} />
+        ))}
+      </datalist>
+      {rows.length === 0 && <p className="muted small">No tenant has an IP whitelist; every tenant accepts any IP.</p>}
+      {rows.map((r, i) => {
+        const entries = splitLines(r.text);
+        const bad = entries.filter((e) => !looksLikeIp(e));
+        const dup = r.tenant.trim() && rows.some((x, j) => j !== i && x.tenant.trim() === r.tenant.trim());
+        const unknown = r.tenant.trim() && tenants.length > 0 && !tenants.includes(r.tenant.trim());
+        return (
+          <div className="tenant-list" key={i}>
+            <div className="tenant-list-head">
+              <input
+                placeholder="tenant id"
+                list={listId}
+                value={r.tenant}
+                aria-label="Tenant id"
+                onChange={(e) => push(rows.map((x, j) => (j === i ? { ...x, tenant: e.target.value } : x)))}
+              />
+              <span className="muted small">
+                {entries.length === 0 ? 'no entries: any IP allowed' : `${entries.length} entr${entries.length === 1 ? 'y' : 'ies'}: only these IPs allowed`}
+              </span>
+              <button type="button" className="link danger" onClick={() => push(rows.filter((_, j) => j !== i))}>
+                Remove tenant
+              </button>
+            </div>
+            <textarea
+              rows={Math.min(10, Math.max(3, entries.length + 1))}
+              placeholder={'203.0.113.7\n203.0.113.0/24\n2001:db8::/32'}
+              aria-label={`IP whitelist for ${r.tenant || 'tenant'}`}
+              spellCheck={false}
+              value={r.text}
+              onChange={(e) => push(rows.map((x, j) => (j === i ? { ...x, text: e.target.value } : x)))}
+            />
+            {bad.length > 0 && <p className="field-error small">Not an IP address or CIDR range: {bad.join(', ')}</p>}
+            {dup && <p className="field-error small">This tenant is listed twice; only one list is kept.</p>}
+            {unknown && <p className="muted small">Note: {r.tenant.trim()} is not in the allowed tenants list above.</p>}
+          </div>
+        );
+      })}
+      <button type="button" className="secondary small" onClick={() => push([...rows, { tenant: unused[0] || '', text: '' }])}>
+        Add tenant IP whitelist
+      </button>
+    </div>
+  );
+}
+
 export function SchemaForm({ schema, value, onChange }) {
   if (!schema || !schema.properties) return null;
   return (
     <div className="schema-form">
       {Object.entries(schema.properties).map(([k, s]) => (
-        <Field key={k} name={k} schema={s} value={value ? value[k] : undefined} path={[k]} onChange={(v) => onChange({ ...value, [k]: v })} />
+        <Field key={k} name={k} schema={s} value={value ? value[k] : undefined} path={[k]} root={value} onChange={(v) => onChange({ ...value, [k]: v })} />
       ))}
     </div>
   );

@@ -143,8 +143,8 @@ once identification happens.
 | Method | Path | Auth | Who calls it |
 |---|---|---|---|
 | `GET` | `/health` | none | uptime checks |
-| `POST` | `/collect` | tenant allowlist (`ALLOWED_TENANTS`) | the SDK, from browsers |
-| `POST` | `/identify` | `x-tenant-id` + `x-api-key` | your login backend, server-to-server |
+| `POST` | `/collect` | tenant allowlist (`ALLOWED_TENANTS`) + the tenant's IP whitelist | the SDK, from browsers |
+| `POST` | `/identify` | `x-tenant-id` + `x-api-key` + the tenant's IP whitelist | your login backend, server-to-server |
 | `POST` | `/cp` | admin JWT (`Authorization: Bearer …`) | a platform operator submitting a custom pattern |
 | `*` | `/api/admin/database/*` | admin JWT only — tenant API keys are rejected | platform operators |
 
@@ -188,6 +188,7 @@ npm run dev              # or: npm start
 | `ALLOWED_TENANTS` | Comma-separated tenant allowlist for `/collect`. Empty = allow all (dev only) |
 | `CORS_ORIGINS` | Comma-separated allowed origins, or `*` |
 | `TENANT_API_KEYS` | JSON map of `tenantId → apiKey`, used by `/identify` |
+| `TENANT_IP_WHITELIST` | JSON map of `tenantId → [IP or CIDR, …]`. A listed tenant's `/collect`, `/ip-intel` and `/identify` requests are accepted only from those IPs (403 otherwise); unlisted tenants accept any IP. Managed in the admin panel under **Tenants & API keys** |
 | `MAX_BATCH_EVENTS` | Max events accepted per `/collect` batch |
 | `MAX_PAYLOAD_BYTES` | Max request body size |
 | `RAW_TTL_DAYS` | Auto-expire raw event batches after N days (`0` = keep forever) |

@@ -29,9 +29,10 @@ function isLogoutEvent(evt) {
   return evt.type === 'logout';
 }
 
+// Only events the site explicitly tags as payment (pageType: 'payment') go to
+// payment_events; the page path is never pattern-matched.
 function isPaymentEvent(evt) {
-  if (evt.pageType === 'payment') return true;
-  return typeof evt.page === 'string' && config.paymentPagePattern.test(evt.page);
+  return evt.pageType === 'payment';
 }
 
 /**
@@ -39,7 +40,7 @@ function isPaymentEvent(evt) {
  *
  *   phase 'login'   → login_events   (until an identify event, which is
  *                                     itself stored in login_events)
- *   phase 'session' → payment_events if the event is on a payment page,
+ *   phase 'session' → payment_events if the event has pageType 'payment',
  *                     otherwise session_events. A logout event is stored in
  *                     session_events and switches the phase back to 'login'.
  */

@@ -123,7 +123,7 @@ describe('Admin Application backend', { skip: SKIP }, () => {
 
   describe('versioned configuration', () => {
     test('save → version 1, with audit row and outbox notice', async () => {
-      const res = await owner.put('/api/configs/ingestion', { data: { maxBatchEvents: 250, paymentPagePattern: '(checkout)', rawTtlDays: 0 }, expectedVersion: 0, reason: 'first' });
+      const res = await owner.put('/api/configs/ingestion', { data: { maxBatchEvents: 250, rawTtlDays: 0 }, expectedVersion: 0, reason: 'first' });
       assert.strictEqual(res.status, 201, JSON.stringify(res.body));
       assert.strictEqual(res.body.version, 1);
       const { query } = require('../src/db/pool');
@@ -141,14 +141,14 @@ describe('Admin Application backend', { skip: SKIP }, () => {
       assert.strictEqual(res.body.details.currentVersion, 1);
     });
 
-    test('invalid data → 400 with field issues; dangerous regex refused', async () => {
-      const res = await owner.put('/api/configs/ingestion', { data: { maxBatchEvents: 300, paymentPagePattern: '(a+)+$' }, expectedVersion: 1, reason: 'bad' });
+    test('invalid data → 400 with field issues', async () => {
+      const res = await owner.put('/api/configs/ingestion', { data: { maxBatchEvents: 0 }, expectedVersion: 1, reason: 'bad' });
       assert.strictEqual(res.status, 400);
-      assert.strictEqual(res.body.details.issues[0].path, 'paymentPagePattern');
+      assert.strictEqual(res.body.details.issues[0].path, 'maxBatchEvents');
     });
 
     test('identical data → 400 no_change', async () => {
-      const res = await owner.put('/api/configs/ingestion', { data: { maxBatchEvents: 250, paymentPagePattern: '(checkout)', rawTtlDays: 0 }, expectedVersion: 1, reason: 'same' });
+      const res = await owner.put('/api/configs/ingestion', { data: { maxBatchEvents: 250, rawTtlDays: 0 }, expectedVersion: 1, reason: 'same' });
       assert.strictEqual(res.body.error, 'no_change');
     });
 
@@ -172,8 +172,26 @@ describe('Admin Application backend', { skip: SKIP }, () => {
       assert.ok(!JSON.stringify(audit.rows).includes('very-secret'));
     });
 
+    test('per-tenant IP whitelist: validated, saved, delivered to the SDK, API keys kept', async () => {
+      let res = await owner.put('/api/configs/tenants', {
+        data: { allowedTenants: ['t1', 't2'], tenantApiKeys: '__UNCHANGED__', ipWhitelist: { t1: ['not-an-ip'] } }, expectedVersion: 2, reason: 'bad ip',
+      });
+      assert.strictEqual(res.status, 400);
+      assert.match(res.body.details.issues[0].path, /^ipWhitelist\.t1/);
+
+      res = await owner.put('/api/configs/tenants', {
+        data: { allowedTenants: ['t1', 't2'], tenantApiKeys: '__UNCHANGED__', ipWhitelist: { t1: ['203.0.113.0/24'], t2: ['2001:db8::1'] } }, expectedVersion: 2, reason: 'ip lists',
+      });
+      assert.strictEqual(res.status, 201, JSON.stringify(res.body));
+      res = await owner.get('/api/configs/tenants');
+      assert.deepStrictEqual(res.body.data.ipWhitelist, { t1: ['203.0.113.0/24'], t2: ['2001:db8::1'] });
+      const snap = await signedInternal(internal, 'GET', '/internal/config/snapshot?types=tenants');
+      assert.deepStrictEqual(snap.body.configs.tenants.data.ipWhitelist, { t1: ['203.0.113.0/24'], t2: ['2001:db8::1'] });
+      assert.deepStrictEqual(snap.body.configs.tenants.data.tenantApiKeys, { t1: 'very-secret-key-1' });
+    });
+
     test('history, diff and rollback (rollback = new version)', async () => {
-      await owner.put('/api/configs/ingestion', { data: { maxBatchEvents: 100, paymentPagePattern: '(checkout)', rawTtlDays: 0 }, expectedVersion: 1, reason: 'lower' });
+      await owner.put('/api/configs/ingestion', { data: { maxBatchEvents: 100, rawTtlDays: 0 }, expectedVersion: 1, reason: 'lower' });
       const diff = await owner.get('/api/configs/ingestion/diff?from=1&to=2');
       assert.deepStrictEqual(diff.body.changes, [{ path: 'maxBatchEvents', from: 250, to: 100 }]);
       const rb = await owner.post('/api/configs/ingestion/rollback', { toVersion: 1, reason: 'undo' });

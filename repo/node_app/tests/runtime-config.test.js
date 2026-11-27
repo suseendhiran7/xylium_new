@@ -20,7 +20,7 @@ const lkg = require('../src/runtime-config/last-known-good');
 
 const quiet = { log() {}, warn() {}, error() {} };
 
-const ingestion = (n) => ({ maxBatchEvents: n, paymentPagePattern: '(checkout)', rawTtlDays: 0 });
+const ingestion = (n) => ({ maxBatchEvents: n, rawTtlDays: 0 });
 
 /** In-memory admin: versions per type, records acks and heartbeats. */
 function fakeAdmin() {
@@ -286,15 +286,17 @@ describe('real appliers (config singleton)', () => {
   const config = require('../src/config');
 
   test('ingestion and tenants take effect on the next read', async () => {
-    const before = { m: config.maxBatchEvents, p: config.paymentPagePattern, t: config.allowedTenants, k: config.tenantApiKeys };
+    const before = { m: config.maxBatchEvents, t: config.allowedTenants, k: config.tenantApiKeys, w: config.tenantIpWhitelist };
     try {
       await APPLIERS.ingestion.apply(ingestion(77));
       expect(config.maxBatchEvents).toBe(77);
-      expect(config.paymentPagePattern.test('/Checkout/step1')).toBe(true);
-      await APPLIERS.tenants.apply({ allowedTenants: ['tx'], tenantApiKeys: { tx: 'k-k-k-k-k-k-k' } });
+      expect(config).not.toHaveProperty('paymentPagePattern');
+      const r = await APPLIERS.tenants.apply({ allowedTenants: ['tx'], tenantApiKeys: { tx: 'k-k-k-k-k-k-k' }, ipWhitelist: { tx: ['10.0.0.0/8'] } });
       expect(config.allowedTenants).toEqual(['tx']);
+      expect(config.tenantIpWhitelist).toEqual({ tx: ['10.0.0.0/8'] });
+      expect(r.details.ipWhitelistedTenants).toBe(1);
     } finally {
-      Object.assign(config, { maxBatchEvents: before.m, paymentPagePattern: before.p, allowedTenants: before.t, tenantApiKeys: before.k });
+      Object.assign(config, { maxBatchEvents: before.m, allowedTenants: before.t, tenantApiKeys: before.k, tenantIpWhitelist: before.w });
     }
   });
 
